@@ -1,5 +1,6 @@
 // pages/Chat.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function Chat() {
   const [messages, setMessages] = useState([
@@ -7,19 +8,48 @@ export default function Chat() {
   ]);
   const [input, setInput] = useState("");
 
-  const handleSend = () => {
+  // Load chat history (optional)
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/chat/history", {
+          params: { userId: "user123" }, // later replace with real userId (auth)
+        });
+        if (res.data?.chat?.messages) {
+          setMessages(res.data.chat.messages.map(msg => ({
+            sender: msg.role === "user" ? "user" : "bot",
+            text: msg.text
+          })));
+        }
+      } catch (err) {
+        console.error("Error loading chat history:", err);
+      }
+    };
+    fetchHistory();
+  }, []);
+
+  const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Add user message
-    setMessages([...messages, { sender: "user", text: input }]);
+    // Optimistically add user message
+    const newMsg = { sender: "user", text: input };
+    setMessages(prev => [...prev, newMsg]);
 
-    // Mock bot response (later integrate with backend/AI API)
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        { sender: "bot", text: "Thanks for sharing. I’ll analyze your symptoms." }
-      ]);
-    }, 1000);
+    try {
+      // Call backend API
+      const res = await axios.post("http://localhost:5000/api/chat", {
+        userId: "user123", // replace with logged in user later
+        message: input,
+      });
+
+      // Add AI response
+      if (res.data.reply) {
+        setMessages(prev => [...prev, { sender: "bot", text: res.data.reply }]);
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      setMessages(prev => [...prev, { sender: "bot", text: "⚠️ Error connecting to server." }]);
+    }
 
     setInput("");
   };

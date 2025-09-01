@@ -1,12 +1,25 @@
+// routes/contactRoutes.js
 import express from "express";
-import { createContact, getContacts } from "../controllers/contactController.js";
+import Contact from "../models/Contact.js";
 
 const router = express.Router();
 
-// Create contact form submission
-router.post("/", createContact);
+// POST contact message
+router.post("/", async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
 
-// (Optional) Get all contact messages (admin)
-router.get("/", getContacts);
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const newMessage = new Contact({ name, email, message });
+    await newMessage.save();
+
+    res.status(201).json({ success: true, message: "Message sent successfully" });
+  } catch (err) {
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
 
 export default router;
